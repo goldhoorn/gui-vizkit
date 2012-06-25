@@ -9,12 +9,20 @@ Vizkit::UiLoader::extend_cplusplus_widget_class "Plot2d" do
         options[:time_window] = 30              #window size during auto scrolling
         options[:cached_time_window] = 60        #total cached window size
         options[:pre_time_window] = 5
+        options[:xaxis_window] = 5
+        options[:pre_xaxis_window] = 5
+        options[:yaxis_window] = 5
+        options[:pre_yaxis_window] = 5
+	
         options[:colors] = [Qt::red, Qt::green, Qt::blue, Qt::cyan, Qt::magenta, Qt::yellow, Qt::gray]
         options[:reuse] = true
         options[:use_y_axis2] = false
+	options[:use_dot_plot] = false
+	options[:use_line_plot] = true
         options[:multi_use_menu] = true
         options[:update_period] = 0.25   # repaint periode if new data are available
                                          # this prevents repainting for each new sample
+	options[:change_plot] = "LINE"
         return options 
     end
 
@@ -66,9 +74,16 @@ Vizkit::UiLoader::extend_cplusplus_widget_class "Plot2d" do
                     action_use_y2.checkable = true
                     action_use_y2.checked = @options[:use_y_axis2]
                     menu.add_action(action_use_y2)
+		    action_plotdot = Qt::Action.new("Plot data in 'dot'", self)
+ 		    action_plotdot.checkable = true
+                    action_plotdot.checked = @options[:use_dot_plot]
+                    menu.add_action(action_plotdot)
+		    action_plotline = Qt::Action.new("Plot data in 'line'", self)		    
+ 		    action_plotline.checkable = true
+                    action_plotline.checked = @options[:use_line_plot]
+                    menu.add_action(action_plotline)
                 end
                 menu.addSeparator
-
                 action_saving = Qt::Action.new("Save to File", self)
                 menu.add_action(action_saving)
 
@@ -81,6 +96,22 @@ Vizkit::UiLoader::extend_cplusplus_widget_class "Plot2d" do
                     @options[:reuse] = !@options[:reuse]
                 elsif(action == action_use_y2)
                     @options[:use_y_axis2] = !@options[:use_y_axis2]
+ 		elsif(action == action_plotdot)
+                    @options[:use_dot_plot] = !@options[:use_dot_plot]		   
+   		    @options[:change_plot] = "DOT"
+  			if @options[:use_dot_plot]
+				@options[:use_line_plot] = false
+			else
+				@options[:use_line_plot] = true
+		    	end
+		elsif(action == action_plotline)
+                    @options[:use_line_plot] = !@options[:use_line_plot]		    
+   		    @options[:change_plot] = "LINE"
+		    if @options[:use_line_plot]
+			@options[:use_dot_plot] = false
+		    else
+			@options[:use_dot_plot] = true
+		    end
                 elsif action == action_saving
                     file_path = Qt::FileDialog::getSaveFileName(nil,"Save Plot to Pdf",File.expand_path("."),"Pdf (*.pdf)")
                     savePdf(file_path,false,0,0) if file_path
@@ -118,22 +149,31 @@ Vizkit::UiLoader::extend_cplusplus_widget_class "Plot2d" do
         graph2(value.full_name+subfield) if value.respond_to? :full_name
     end
 
-    def graph2(name)
-        graph = if(@graphs.has_key?(name))
-                    @graphs[name]
-                else
+    def graph2(name)	
+        graph = if(@graphs.has_key?(name))	            
+                    @graphs[name]		    
+                else    		    
                     graph = if @options[:use_y_axis2] == true
                                 getYAxis2.setVisible(true)
                                 getYAxis2.setLabel(name.split(".").last)
-                                addGraph(getXAxis(),getYAxis2())
+				if @options[:use_dot_plot]== false					
+                                	addGraph(getXAxis(),getYAxis2())
+				else 
+					custom_addGraph(getXAxis(),getYAxis2())
+				end			
                             else
-                                getYAxis.setLabel(name.split(".").last)
-                                addGraph(getXAxis(),getYAxis())
+                                getYAxis.setLabel(name.split(".").last)                                
+				if @options[:use_dot_plot]== false					
+                                	addGraph(getXAxis(),getYAxis())						
+				else 					
+					custom_addGraph(getXAxis(),getYAxis())					
+				end				
                             end
+		    @options[:change_plot] = "RESET"
                     graph.setName(name)
                     graph.addToLegend
                     if(@graphs.size < @options[:colors].size)
-                        graph.setPen(Qt::Pen.new(Qt::Brush.new(@options[:colors][@graphs.size]),1))
+                         graph.setPen(Qt::Pen.new(Qt::Brush.new(@options[:colors][@graphs.size]),1))
                     end
                     @graphs[name] = graph
                 end
@@ -145,17 +185,26 @@ Vizkit::UiLoader::extend_cplusplus_widget_class "Plot2d" do
 
     def rename_graph(old_name,new_name)
         graph = @graphs[old_name]
-        if graph
+        if graph           
             graph.setName(new_name)
             @graphs[new_name] = @graphs[old_name]
+	    @graphs[old_name].removeFromLegend		# remove the old legend from the graph
             @graphs.delete old_name
         end
     end
 
     #diplay is called each time new data are available on the orocos output port
     #this functions translates the orocos data struct to the widget specific format
-    def update(sample,name)
-        graph = graph2(name)
+    def update(sample,name)        
+	if @options[:change_plot]== "DOT"		
+		rename_graph(name,name)
+		graph = graph2(name)
+	elsif @options[:change_plot]== "LINE"			
+		rename_graph(name,name)
+		graph = graph2(name)
+	elsif @options[:change_plot]== "RESET" 
+		graph = graph2(name)        	
+	end
         x = time.to_f-@time
         graph.removeDataBefore(x-@options[:cached_time_window])
         graph.addData(x,sample.to_f)
@@ -182,9 +231,25 @@ Vizkit::UiLoader::extend_cplusplus_widget_class "Plot2d" do
     end
     
     def update_custom(name,values_x,values_y)
-        graph = graph2(name)
-        graph.addData(values_x,values_y)
-        graph.rescaleValueAxis(true)
+        	
+	if @options[:change_plot]== "DOT"		
+		rename_graph(name,name)
+		graph = graph2(name)
+	elsif @options[:change_plot]== "LINE"			
+		rename_graph(name,name)
+		graph = graph2(name)
+	elsif @options[:change_plot]== "RESET" 
+		graph = graph2(name)        	
+	end	
+
+	graph.addData(values_x,values_y)	
+
+	if @options[:auto_scrolling]
+        	getXAxis.setRange(values_x-@options[:xaxis_window],values_x+@options[:pre_xaxis_window])
+		getYAxis.setRange(values_y-@options[:yaxis_window],values_y+@options[:pre_yaxis_window])
+        	graph.rescaleValueAxis(true)		
+        end       
+
         @needs_update = true
     end
 
