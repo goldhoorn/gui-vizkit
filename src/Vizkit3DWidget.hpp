@@ -6,7 +6,6 @@
 #include <transformer/NonAligningTransformer.hpp>
 #include <vizkit/Vizkit3DPlugin.hpp>
 
-class ViewQOSG;
 class QComboBox;
 class QGroupBox;
 
@@ -16,12 +15,11 @@ namespace vizkit
     class CoordinateFrame;
     class GridNode;
     class QProperyBrowserWidget;
+    class Vizkit3DView;
 
 class QDESIGNER_WIDGET_EXPORT Vizkit3DWidget : public CompositeViewerQOSG 
 {
     Q_OBJECT
-    Q_PROPERTY(bool show_grid READ isGridEnabled WRITE setGridEnabled)
-    Q_PROPERTY(bool show_axes READ areAxesEnabled WRITE setAxesEnabled)
 
 public:
     Vizkit3DWidget( QWidget* parent = 0, Qt::WindowFlags f = 0 );
@@ -32,32 +30,40 @@ public:
      * means that the types used in the osg_ptr below must be defined.
      */
     ~Vizkit3DWidget();
-
-    osg::ref_ptr<osg::Group> getRootNode() const;
-    osg::ref_ptr<ViewQOSG> getViewer();
-    void addDataHandler(VizPluginBase *viz);
-    void removeDataHandler(VizPluginBase *viz);
     
     /**
      * Sets the camera focus to specific position.
      * @param lookAtPos focus this point
      */
     void changeCameraView(const osg::Vec3& lookAtPos);
+
     /**
      * Sets the camera focus and the camera itself to specific position.
      * @param lookAtPos focus this point
      * @param eyePos position of the camera
      */
     void changeCameraView(const osg::Vec3& lookAtPos, const osg::Vec3& eyePos);
-    void setTrackedNode( vizkit::VizPluginBase* plugin );
 
-    QSize sizeHint() const;
-    
 public slots:
+    /** Add new vizkit plugins to this view
+     *
+     * The plugins are added recursively, and the given plugin does not
+     * necessarily have to be a vizkit plugin. It only has to have children that
+     * are vizkit plugins
+     */
     void addPlugin(QObject* plugin, QObject* parent = NULL);
+
+    /** Remove a vizkit plugin from this view
+     */
     void removePlugin(QObject* plugin);
     
-    ///The frame in which the data should be displayed
+    /** Make the camera track the root of this plugin
+     */
+    void setTrackedNode(VizPluginBase* plugin );
+
+    /**
+     * Sets the frame in which the camera is fixed
+     */
     void setVisualizationFrame(const QString &frame);
     
     /**
@@ -65,76 +71,46 @@ public slots:
      * The pluging data frame is the frame in which the 
      * plugin expects the data to be.  
      * e.g. in case of the LaserScanVisualization 'laser'
-     * */
-    void setPluginDataFrame(const QString &frame, QObject *plugin);
+     */
+    void setPluginDataFrame(const QString &frame, VizPluginBase *plugin);
     
+    /**
+     * Adds a dynamic transformation to this view's transformer
+     */
     void pushDynamicTransformation(const base::samples::RigidBodyState &tr);
-    void updateTransformations();
 	
     /**
-    * Function for adding static Transformations.
-    * */
+     * Adds a static transformation to this view's transformer
+     */
     void pushStaticTransformation(const base::samples::RigidBodyState &tr);
+
+    bool isGridEnabled() const;
+    void setGridEnabled(bool enabled);
+    bool areAxesEnabled() const;
+    void setAxesEnabled(bool enabled);
 
     QWidget* getPropertyWidget();
 
     void setCameraLookAt(double x, double y, double z);
     void setCameraEye(double x, double y, double z);
     void setCameraUp(double x, double y, double z);
-        
-signals:
-    void addPlugins(QObject* plugin,QObject* parent);
-    void removePlugins(QObject* plugin);
-    void propertyChanged(QString propertyName);
-    
-private slots:
-    void addPluginIntern(QObject* plugin,QObject *parent=NULL);
-    void removePluginIntern(QObject* plugin);
-    void pluginActivityChanged(bool enabled);
 
+protected slots:
+    void updatedTransformation(std::string const& source, std::string const& target);
+    
 protected:
-    void changeCameraView(const osg::Vec3* lookAtPos,
-            const osg::Vec3* eyePos,
-            const osg::Vec3* upVector);
-    bool isGridEnabled();
-    void setGridEnabled(bool enabled);
-    bool areAxesEnabled();
-    void setAxesEnabled(bool enabled);
-    
-    void checkAddFrame(const std::string &frame);
+    void autoAddFrameToCombo(const std::string& frame);
+    QWidget* createControlPane();
+    void registerOnPropertyBrowser(QObject* plugin, QObject* parent);
+    void deregisterFromPropertyBrowser(QObject* plugin);
 
-    osg::ref_ptr<osg::Group> root;
-    void createSceneGraph();
-    osg::ref_ptr<PickHandler> pickHandler;
-    osg::ref_ptr<ViewQOSG> view;
-    osg::ref_ptr<GridNode> groundGrid;
-    osg::ref_ptr<CoordinateFrame> coordinateFrame;
-    QStringList* pluginNames;
     QProperyBrowserWidget* propertyBrowserWidget;
-    transformer::NonAligningTransformer transformer;
     QComboBox *frameSelector;
     QGroupBox* groupBox;
-    
-    std::string displayFrame;
-    std::string initalDisplayFrame;
-    std::vector<VizPluginBase *> plugins;
- 
-    std::map<std::string, bool> availableFrames;
-    
-    /**
-     * Book keeper class for the transfomrations
-     * */
-    class TransformationData
-    {
-        public:
-	    TransformationData() : transformation(NULL) {};
-            std::string dataFrame;
-            transformer::Transformation *transformation;
-    };
-    
-    std::map<vizkit::VizPluginBase*, TransformationData> pluginToTransformData;
-
-    
+    Vizkit3DView* vizkitView;
+    osg::ref_ptr<osgViewer::View> osgView;
+    /** The set of frames currently known to exist */
+    std::set<std::string> availableFrames;
 };
 
 }

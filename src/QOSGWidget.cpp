@@ -390,23 +390,23 @@ void QOSGWidget::keyReleaseEvent( QKeyEvent* event )
 //---------------------------------------------------------------------------
 // ViewQOSG creates the traits...
 ViewQOSG::ViewQOSG( QWidget *parent )
-    : osgViewer::View(),
-      QOSGWidget( parent ),
-      _daw(parent)
+    : QOSGWidget( parent )
+    , osgViewer::View()
+    , _daw(parent)
 {
 
 // OSG
-    setGeometry( 0, 0, parent->width(), parent->height() );
+    setGeometry( 0, 0, width(), height() );
 
     getCamera()->setGraphicsContext( getGraphicsWindow() );
 
     getCamera()->setProjectionMatrixAsPerspective(
         30.0f, 
-        static_cast<double>(parent->width()) / 
-        static_cast<double>(parent->height()), 1.0, 1000.0);
+        static_cast<double>(width()) / 
+        static_cast<double>(height()), 1.0, 1000.0);
 
     getCamera()->setViewport(
-        new osg::Viewport( 0, 0, parent->width(), parent->height()));
+        new osg::Viewport( 0, 0, width(), height()));
 
 #ifdef USE_3DMOUSE
     chid = 0;
@@ -541,6 +541,54 @@ void ViewQOSG::setTrackedNode( osg::ref_ptr<osg::Node> homeNode )
 float ViewQOSG::aspectRatio( int width, int height )
 {
     return static_cast<float>(width) / static_cast<float>(height);
+}
+
+void ViewQOSG::changeCameraView(const osg::Vec3& lookAtPos)
+{
+    changeCameraView(&lookAtPos, 0, 0);
+}
+
+void ViewQOSG::changeCameraView(const osg::Vec3& lookAtPos, const osg::Vec3& eyePos)
+{
+    changeCameraView(&lookAtPos, &eyePos, 0);
+}
+
+void ViewQOSG::setCameraLookAt(double x, double y, double z)
+{
+    osg::Vec3 lookAt(x, y, z);
+    changeCameraView(&lookAt, 0, 0);
+}
+void ViewQOSG::setCameraEye(double x, double y, double z)
+{
+    osg::Vec3 eye(x, y, z);
+    changeCameraView(0, &eye, 0);
+}
+void ViewQOSG::setCameraUp(double x, double y, double z)
+{
+    osg::Vec3 up(x, y, z);
+    changeCameraView(0, 0, &up);
+}
+
+void ViewQOSG::changeCameraView(const osg::Vec3* lookAtPos, const osg::Vec3* eyePos, const osg::Vec3* upVector)
+{
+    osgGA::KeySwitchMatrixManipulator* switchMatrixManipulator =
+        dynamic_cast<osgGA::KeySwitchMatrixManipulator*>(getCameraManipulator());
+    if (!switchMatrixManipulator) return;
+    
+    //get last values of eye, center and up
+    osg::Vec3d eye, center, up;
+    switchMatrixManipulator->getHomePosition(eye, center, up);
+
+    if (lookAtPos)
+        center = *lookAtPos;
+    if (eyePos)
+        eye = *eyePos;
+    if (upVector)
+        up = *upVector;
+
+    //set new values
+    switchMatrixManipulator->setHomePosition(eye, center, up);
+    home();
 }
 
 //---------------------------------------------------------------------------

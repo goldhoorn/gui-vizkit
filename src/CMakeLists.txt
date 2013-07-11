@@ -17,10 +17,12 @@ rock_library(vizkit
         ColorConversionHelper.cpp
         ${PROPERTY_BROWSER_RESOURCES} 
     MOC
-        Vizkit3DPlugin.cpp CompositeViewerQOSG.cpp
-        PickHandler.cpp QOSGWidget.cpp
+        Vizkit3DPlugin.cpp
+        Vizkit3DView.cpp
         Vizkit3DWidget.cpp
         QVizkitMainWindow.cpp
+        CompositeViewerQOSG.cpp
+        PickHandler.cpp QOSGWidget.cpp
         qtpropertybrowser/qteditorfactory.cpp 
         qtpropertybrowser/qtvariantproperty.cpp
         qtpropertybrowser/qtpropertymanager.cpp
@@ -36,9 +38,10 @@ rock_library(vizkit
         QtThreadedWidget.hpp
 	QVisualizationTestWidget.hpp
         Vizkit3DPlugin.hpp
-        QOSGWidget.hpp
+        Vizkit3DView.hpp
         Vizkit3DWidget.hpp
         QVizkitMainWindow.hpp
+        QOSGWidget.hpp
         VizPlugin.hpp
         CompositeViewerQOSG.hpp
         PickHandler.hpp
@@ -58,7 +61,11 @@ rock_library(vizkitmainwindowloader
     MOC QVizkitMainWindowLoader.cpp
     DEPS vizkit
     NOINSTALL) # installs in a non-standard location
-install(TARGETS vizkitwidgetloader vizkitmainwindowloader
+rock_library(vizkitviewloader
+    MOC QVizkitViewLoader.cpp
+    DEPS vizkit
+    NOINSTALL) # installs in a non-standard location
+install(TARGETS vizkitwidgetloader vizkitmainwindowloader vizkitviewloader
     LIBRARY DESTINATION lib/qt/designer
     ARCHIVE DESTINATION lib/qt/designer)
 

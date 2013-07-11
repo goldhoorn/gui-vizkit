@@ -148,8 +148,10 @@ protected:
 //    QOSGWidget and osgViewer::View.  This allows us to post a different
 //    scene graph in each view that the viewer manages.
 
-class ViewQOSG : public osgViewer::View, public QOSGWidget
+class ViewQOSG : public QOSGWidget, public osgViewer::View
 {
+    Q_OBJECT
+
 public:
     ViewQOSG( QWidget *parent /*, osg::GraphicsContext::Traits* traits*/ );
 
@@ -168,11 +170,32 @@ public:
 
     float aspectRatio( int width, int height );
 
+    /**
+     * Sets the camera focus to specific position.
+     * @param lookAtPos focus this point
+     */
+    void changeCameraView(const osg::Vec3& lookAtPos);
+    /**
+     * Sets the camera focus and the camera itself to specific position.
+     * @param lookAtPos focus this point
+     * @param eyePos position of the camera
+     */
+    void changeCameraView(const osg::Vec3& lookAtPos, const osg::Vec3& eyePos);
+
+public slots:
+    void setCameraLookAt(double x, double y, double z);
+    void setCameraEye(double x, double y, double z);
+    void setCameraUp(double x, double y, double z);
+
 protected:
     void        focusInEvent( QFocusEvent *event );
 
     QWidget *_daw;  // drawing area widget
     int _x, _y, _width, _height;
+
+    void changeCameraView(const osg::Vec3* lookAtPos,
+            const osg::Vec3* eyePos,
+            const osg::Vec3* upVector);
 };
 
 

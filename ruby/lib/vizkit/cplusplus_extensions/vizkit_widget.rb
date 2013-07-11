@@ -346,6 +346,11 @@ UiLoader.extend_cplusplus_widget_class "vizkit::Vizkit3DWidget" do
     include QtTypelibExtension
 end
 
+UiLoader.extend_cplusplus_widget_class "vizkit::Vizkit3DView" do
+    include VizkitPluginLoaderExtension
+    include QtTypelibExtension
+end
+
 UiLoader.extend_cplusplus_widget_class "vizkit::QVizkitMainWindow" do
     include VizkitPluginLoaderExtension
 end
@@ -368,5 +373,6 @@ UiLoader.register_3d_plugin_for('MotionCommandVisualization', "/base/MotionComma
 UiLoader.register_3d_plugin('WaypointVisualization',"vizkit-base", 'WaypointVisualization')
 UiLoader.register_3d_plugin_for('WaypointVisualization', "/base/Waypoint", :updateWp)
 end
+Vizkit::UiLoader.register_widget_for("vizkit::Vizkit3DView","/transformer/ConfigurationState", :update)
 Vizkit::UiLoader.register_widget_for("vizkit::Vizkit3DWidget","/transformer/ConfigurationState", :update)
 
